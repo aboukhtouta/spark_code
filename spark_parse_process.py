@@ -58,10 +58,12 @@ def resource(filename):
 
 def get_data(data):
 	if not data.isEmpty():
-		index=data.zipWithIndex()
-		l=index.collect()
-		for item in l:
-			print l
+		
+		values = data.filter(lambda x: x!=header).map(lambda x: Try(parse_trace,x.strip())).filter(lambda x: x.isSuccess).map(lambda x: x.get())
+		#maps = values.map(lambda x: x[0]
+		for item in values.collect():
+			print item
+			sys.exit(1)
 		
 # def get_data(data):
 	# if not data.isEmpty():
@@ -126,11 +128,11 @@ def get_data(data):
 #Function to parse a line in Web log trace
 def parse_trace(line):
 
-	return 0
+	return line.strip('\t')
 	
 		
 def main():
-	os.environ["PYSPARK_PYTHON"]="/usr/local/bin/python2.7"
+	os.environ["PYSPARK_PYTHON"]="/usr/bin/python2.7"
 	parser = argparse.ArgumentParser(description='Log Parser')
 	parser.add_argument('-p','--path', nargs='?', default ='./logs_streaming', help='path to streaming folder')
 	parser.add_argument('-c','--conf', nargs='?', default ='config.yaml', help='path to config file')
@@ -144,7 +146,7 @@ def main():
 	#global es_write_conf1
 	#global es_write_conf2
 	#global header
-	#global reader
+	global reader
 	global sc
 	#global es
 	global args
@@ -153,7 +155,7 @@ def main():
 	#rg1 = re.compile(r1,re.IGNORECASE|re.DOTALL)
 	#rg2 = re.compile(r2,re.IGNORECASE|re.DOTALL)
 	args = parser.parse_args()
-
+	header="src-IP\tanon-dst-IP	src-port\tdst-port\tTTL\tIP-Length\tPackets\tminute"
 	with open(resource(args.conf), 'r') as f:
 		try:
 			cfg=yaml.load(f)
