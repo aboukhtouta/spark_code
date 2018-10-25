@@ -150,8 +150,8 @@ def main():
 	global args
 	#global geoDBpath
 	#global logger
-	rg1 = re.compile(r1,re.IGNORECASE|re.DOTALL)
-	rg2 = re.compile(r2,re.IGNORECASE|re.DOTALL)
+	#rg1 = re.compile(r1,re.IGNORECASE|re.DOTALL)
+	#rg2 = re.compile(r2,re.IGNORECASE|re.DOTALL)
 	args = parser.parse_args()
 
 	with open(resource(args.conf), 'r') as f:
