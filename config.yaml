@@ -1,0 +1,7 @@
+spark:
+  master: "local[*]"
+  name: "SparkLogParser"
+  cpus: "-1"
+  interval: 1
+maxmind:
+  path: "./GeoLite2-City.mmdb"
