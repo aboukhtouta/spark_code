@@ -128,7 +128,8 @@ def get_data(data):
 #Function to parse a line in Web log trace
 def parse_trace(line):
 
-	return line.strip('\t')
+	el=line.strip('\t')
+	return el[0],int(el[1]),int(el[2]),int(el[3]),int(el[4]),int(el[5]),int(el[6]),int(el[7])
 	
 		
 def main():
