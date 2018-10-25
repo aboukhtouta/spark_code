@@ -145,8 +145,8 @@ def main():
 	#global es_write_conf0
 	#global es_write_conf1
 	#global es_write_conf2
-	#global header
-	global reader
+	global header
+	#global reader
 	global sc
 	#global es
 	global args
