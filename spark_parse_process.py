@@ -60,8 +60,11 @@ def get_data(data):
 	if not data.isEmpty():
 		
 		values = data.filter(lambda x: x!=header).map(lambda x: Try(parse_trace,x.strip())).filter(lambda x: x.isSuccess).map(lambda x: x.get())
-		#maps = values.map(lambda x: x[0]
-		for item in values.collect():
+		maps=map((lambda (a,b,c,d,e,f,g,h): (a, len(set(b)),len(set(c)),list(set(d))),
+			reduce(lambda x, y: x + y, list(e)) / len(list(e)),max(list(e)),min(list(e)),reduce(lambda x, y: x + y, list(f)) / len(list(f)),
+			sum(list(g)),len(set(h))), 
+			sorted(l.groupByKey().collect())))
+		for item in maps:
 			print item
 			sys.exit(1)
 		
@@ -127,7 +130,6 @@ def get_data(data):
 
 #Function to parse a line in Web log trace
 def parse_trace(line):
-
 	el=line.strip('\t')
 	return el[0],int(el[1]),int(el[2]),int(el[3]),int(el[4]),int(el[5]),int(el[6]),int(el[7])
 	
