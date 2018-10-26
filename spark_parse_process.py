@@ -63,7 +63,7 @@ def get_data(data):
 		maps=map((lambda (a,b,c,d,e,f,g,h): (a, len(set(b)),len(set(c)),list(set(d))),
 			reduce(lambda x, y: x + y, list(e)) / len(list(e)),max(list(e)),min(list(e)),reduce(lambda x, y: x + y, list(f)) / len(list(f)),
 			sum(list(g)),len(set(h))), 
-			sorted(l.groupByKey().collect())))
+			sorted(l.groupByKey().collect()))
 		for item in maps:
 			print item
 			sys.exit(1)
