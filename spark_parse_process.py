@@ -60,6 +60,9 @@ def get_data(data):
 	if not data.isEmpty():
 		s = data.toDebugString()
 		print s
+		for m in re.finditer(rg1,s):
+			path=s[m.start():m.end()]
+		print path
 		sys.exit(1)
 		data=data.persist(StorageLevel.MEMORY_AND_DISK)
 		values = data.filter(lambda x: x!=header).map(lambda x: Try(parse_trace,x.strip())).filter(lambda x: x.isSuccess).map(lambda x: x.get())
@@ -160,10 +163,11 @@ def main():
 	parser.add_argument('-p','--path', nargs='?', default ='./logs_streaming', help='path to streaming folder')
 	parser.add_argument('-c','--conf', nargs='?', default ='config.yaml', help='path to config file')
 	parser.add_argument('-o','--out', nargs='?', default ='./output', help='path to output folder')
+	r1='((?:\\/[\\w\\.\\-]+)+)'	# Unix Path pattern
 	#parser.add_argument('-f','--fs', nargs='?', default ='hadoop', choices=['hadoop', 'pyelastic'], help='Insertion through Hadoop API or ES')
 
 	
-	#global rg1
+	global rg1
 	#global rg2
 	
 	#global es_write_conf0
@@ -176,7 +180,7 @@ def main():
 	global args
 	#global geoDBpath
 	#global logger
-	#rg1 = re.compile(r1,re.IGNORECASE|re.DOTALL)
+	rg1 = re.compile(r1,re.IGNORECASE|re.DOTALL)
 	#rg2 = re.compile(r2,re.IGNORECASE|re.DOTALL)
 	args = parser.parse_args()
 	header="src-IP\tanon-dst-IP	src-port\tdst-port\tTTL\tIP-Length\tPackets\tminute"
