@@ -8,7 +8,7 @@ from pyspark.streaming import StreamingContext
 #import pygeohash as pgh
 #import geoip2.database
 #import shlex
-#import re
+import re
 import inspect as _inspect
 #import logging
 
@@ -58,15 +58,35 @@ def resource(filename):
 
 def get_data(data):
 	if not data.isEmpty():
-		
+		s = data.toDebugString()
+		print s
+		sys.exit(1)
+		data=data.persist(StorageLevel.MEMORY_AND_DISK)
 		values = data.filter(lambda x: x!=header).map(lambda x: Try(parse_trace,x.strip())).filter(lambda x: x.isSuccess).map(lambda x: x.get())
-		maps=map((lambda (a,b,c,d,e,f,g,h): (a, len(set(b)),len(set(c)),list(set(d))),
-			reduce(lambda x, y: x + y, list(e)) / len(list(e)),max(list(e)),min(list(e)),reduce(lambda x, y: x + y, list(f)) / len(list(f)),
-			sum(list(g)),len(set(h))), 
-			sorted(l.groupByKey().collect()))
-		for item in maps:
-			print item
-			sys.exit(1)
+			
+		#maps=map((lambda (a,b,c,d,e,f,g,h): (a, len(set(b)),len(set(c)),list(set(d)),
+			#reduce(lambda x, y: x + y, list(e)) / len(list(e)),max(list(e)),min(list(e)),reduce(lambda x, y: x + y, list(f)) / len(list(f)),
+			#sum(list(g)),len(set(h)))), 
+			#sorted(values.groupByKey().collect()))
+		# Mappings with resect to IPs
+		maps_src_dst_IPs_count=sc.parallelize(map(lambda(a,b): (a, len(set(b))),sorted(values.map(lambda x: (x[0],x[1])).groupByKey().collect())))
+		maps_src_source_ports_count=sc.parallelize(map(lambda(a,b): (a, len(set(b))),sorted(values.map(lambda x: (x[0],x[2])).groupByKey().collect())))
+		maps_src_dst_ports=sc.parallelize(map(lambda(a,b): (a, sorted(set(b))),sorted(values.map(lambda x: (x[0],int(x[3]))).groupByKey().collect())))
+		maps_src_ttl_avg=sc.parallelize(map(lambda(a,b): (a, reduce(lambda x, y: x + y, list(b)) / len(list(b))),sorted(values.map(lambda x: (x[0],int(x[4]))).groupByKey().collect())))
+		maps_src_ttl_max=sc.parallelize(map(lambda(a,b): (a, max(list(b))),sorted(values.map(lambda x: (x[0],int(x[4]))).groupByKey().collect())))
+		maps_src_ttl_min=sc.parallelize(map(lambda(a,b): (a, min(list(b))),sorted(values.map(lambda x: (x[0],int(x[4]))).groupByKey().collect())))
+		maps_src_ip_length_avg=sc.parallelize(map(lambda(a,b): (a, reduce(lambda x, y: x + y, list(b)) / len(list(b))),sorted(values.map(lambda x: (x[0],int(x[5]))).groupByKey().collect())))
+		maps_src_packets_sum=sc.parallelize(map(lambda(a,b): (a,sum(b)),sorted(values.map(lambda x: (x[0],int(x[6]))).groupByKey().collect())))
+		maps_src_intervals=sc.parallelize(map(lambda(a,b): (a, len(set(b))),sorted(values.map(lambda x: (x[0],x[7])).groupByKey().collect())))
+		
+		group=sorted(maps_src_dst_IPs_count.groupWith(maps_src_source_ports_count,maps_src_dst_ports,maps_src_ttl_avg,maps_src_ttl_max,maps_src_ttl_min,maps_src_ip_length_avg,maps_src_packets_sum,maps_src_intervals).collect())
+		
+		res=map(lambda (x,y): (x, (y[0], y[1], list(y[2]), y[3], y[4], y[5], y[6], y[7], y[8])),group)
+		l=convert_dict(res)
+		
+def convert_dict(res):
+	return res
+		
 		
 # def get_data(data):
 	# if not data.isEmpty():
@@ -130,7 +150,7 @@ def get_data(data):
 
 #Function to parse a line in Web log trace
 def parse_trace(line):
-	el=line.strip('\t')
+	el=re.split(r'\t+',line)
 	return el[0],int(el[1]),int(el[2]),int(el[3]),int(el[4]),int(el[5]),int(el[6]),int(el[7])
 	
 		
@@ -139,6 +159,7 @@ def main():
 	parser = argparse.ArgumentParser(description='Log Parser')
 	parser.add_argument('-p','--path', nargs='?', default ='./logs_streaming', help='path to streaming folder')
 	parser.add_argument('-c','--conf', nargs='?', default ='config.yaml', help='path to config file')
+	parser.add_argument('-o','--out', nargs='?', default ='./output', help='path to output folder')
 	#parser.add_argument('-f','--fs', nargs='?', default ='hadoop', choices=['hadoop', 'pyelastic'], help='Insertion through Hadoop API or ES')
 
 	
