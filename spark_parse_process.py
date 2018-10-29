@@ -61,7 +61,8 @@ def get_data(data):
 		s = data.toDebugString()
 		for m in re.finditer(rg1,s):
 			path=s[m.start():m.end()]
-		path=path[path.rfind("/"):]
+		path=path[path.rfind(os.sep)+1:]
+		path=path.replace(".txt",".csv")
 		data=data.persist(StorageLevel.MEMORY_AND_DISK)
 		values = data.filter(lambda x: x!=header).map(lambda x: Try(parse_trace,x.strip())).filter(lambda x: x.isSuccess).map(lambda x: x.get())
 			
@@ -82,12 +83,39 @@ def get_data(data):
 		
 		group=sorted(maps_src_dst_IPs_count.groupWith(maps_src_source_ports_count,maps_src_dst_ports,maps_src_ttl_avg,maps_src_ttl_max,maps_src_ttl_min,maps_src_ip_length_avg,maps_src_packets_sum,maps_src_intervals).collect())
 		
-		res=map(lambda (x,y): (x, (y[0], y[1], list(y[2]), y[3], y[4], y[5], y[6], y[7], y[8])),group)
-		l=convert_dict(res)
+		col=map(lambda (x,y): (x, (y[0], y[1], list(y[2]), y[3], y[4], y[5], y[6], y[7], y[8])),group)
+		res=convert_json_bulk(col)
+		with open(resource(args.out)+os.sep+path, "wb") as f:
+			f.write('[\n')
+			cpt=1
+			length=len(res)
+			for item in res:
+				line=str(item)
+				if cpt!=length:
+					line=line+",\n"
+				else:
+					line=line+"\n"
+				f.write(line)
+			f.write(']')
 		
-def convert_json_bulk(res):
-
-	return res
+def convert_json_bulk(col):
+	l=[]
+	for item in col:
+		obj={
+			'ip': col[0],
+			'unique_dst_ips': col[1][0],
+			'unique_src_ports': col[1][1],
+			'dst_ports': col[1][2],
+			'ttl_avg': col[1][3],
+			'ttl_max': col[1][4],
+			'ttl_min': col[1][5],
+			'ip_length_avg': col[1][6],
+			'sum_packets': col[1][7],
+			'active_intervals': col[1][8]
+		}
+		rec={'_index':'features_index', '_type': 'stats_aggregates', '_source':obj} 
+		l.append(rec)
+	return l
 		
 		
 # def get_data(data):
