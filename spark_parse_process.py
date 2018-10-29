@@ -59,11 +59,9 @@ def resource(filename):
 def get_data(data):
 	if not data.isEmpty():
 		s = data.toDebugString()
-		print s
 		for m in re.finditer(rg1,s):
 			path=s[m.start():m.end()]
-		print path
-		sys.exit(1)
+		path=path[path.rfind("/"):]
 		data=data.persist(StorageLevel.MEMORY_AND_DISK)
 		values = data.filter(lambda x: x!=header).map(lambda x: Try(parse_trace,x.strip())).filter(lambda x: x.isSuccess).map(lambda x: x.get())
 			
@@ -87,7 +85,8 @@ def get_data(data):
 		res=map(lambda (x,y): (x, (y[0], y[1], list(y[2]), y[3], y[4], y[5], y[6], y[7], y[8])),group)
 		l=convert_dict(res)
 		
-def convert_dict(res):
+def convert_json_bulk(res):
+
 	return res
 		
 		
