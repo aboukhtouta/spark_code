@@ -4,12 +4,12 @@ import argparse
 import multiprocessing
 from pyspark import SparkContext,SparkConf,SparkFiles,StorageLevel
 from pyspark.streaming import StreamingContext
+import re
+import inspect as _inspect
 #from elasticsearch import Elasticsearch,helpers
 #import pygeohash as pgh
 #import geoip2.database
 #import shlex
-import re
-import inspect as _inspect
 #import logging
 
 '''Author: Amine Boukhtouta 23-10-2018'''
@@ -56,6 +56,8 @@ def resource(filename):
 	cwd = os.path.dirname(os.path.realpath(__file__))
 	return os.path.join(cwd, filename)
 
+#TCP SYn 6 |..| 0X02
+#Per IP: sorted scanned ports (ascending), sum nbr packets, total nbr unique destinations, nbr unique source ports, nbr active intervals, avg IP length 	
 def get_data(data):
 	if not data.isEmpty():
 		s = data.toDebugString()
@@ -65,12 +67,7 @@ def get_data(data):
 		path=path.replace(".txt",".csv")
 		data=data.persist(StorageLevel.MEMORY_AND_DISK)
 		values = data.filter(lambda x: x!=header).map(lambda x: Try(parse_trace,x.strip())).filter(lambda x: x.isSuccess).map(lambda x: x.get())
-			
-		#maps=map((lambda (a,b,c,d,e,f,g,h): (a, len(set(b)),len(set(c)),list(set(d)),
-			#reduce(lambda x, y: x + y, list(e)) / len(list(e)),max(list(e)),min(list(e)),reduce(lambda x, y: x + y, list(f)) / len(list(f)),
-			#sum(list(g)),len(set(h)))), 
-			#sorted(values.groupByKey().collect()))
-		# Mappings with resect to IPs
+		# Mappings with by indexing src_IPs
 		maps_src_dst_IPs_count=sc.parallelize(map(lambda(a,b): (a, len(set(b))),sorted(values.map(lambda x: (x[0],x[1])).groupByKey().collect())))
 		maps_src_source_ports_count=sc.parallelize(map(lambda(a,b): (a, len(set(b))),sorted(values.map(lambda x: (x[0],x[2])).groupByKey().collect())))
 		maps_src_dst_ports=sc.parallelize(map(lambda(a,b): (a, sorted(set(b))),sorted(values.map(lambda x: (x[0],int(x[3]))).groupByKey().collect())))
@@ -83,7 +80,10 @@ def get_data(data):
 		
 		group=sorted(maps_src_dst_IPs_count.groupWith(maps_src_source_ports_count,maps_src_dst_ports,maps_src_ttl_avg,maps_src_ttl_max,maps_src_ttl_min,maps_src_ip_length_avg,maps_src_packets_sum,maps_src_intervals).collect())
 		
-		col=map(lambda (x,y): (x, (y[0], y[1], list(y[2]), y[3], y[4], y[5], y[6], y[7], y[8])),group)
+		col=map(lambda (x,y): (x, (list(y[0]), list(y[1]), list(y[2]), list(y[3]), list(y[4]), list(y[5]), list(y[6]), list(y[7]), list(y[8]))),group)
+		#for item in col:
+			#print item
+			#sys.exit(1)
 		res=convert_json_bulk(col)
 		with open(resource(args.out)+os.sep+path, "wb") as f:
 			f.write('[\n')
@@ -103,80 +103,20 @@ def convert_json_bulk(col):
 	for item in col:
 		obj={
 			'ip': col[0],
-			'unique_dst_ips': col[1][0],
-			'unique_src_ports': col[1][1],
-			'dst_ports': col[1][2],
-			'ttl_avg': col[1][3],
-			'ttl_max': col[1][4],
-			'ttl_min': col[1][5],
-			'ip_length_avg': col[1][6],
-			'sum_packets': col[1][7],
-			'active_intervals': col[1][8]
+			'unique_dst_ips': col[1][0][0],
+			'unique_src_ports': col[1][1][0],
+			'dst_ports': col[1][2][0],
+			'ttl_avg': col[1][3][0],
+			'ttl_max': col[1][4][0],
+			'ttl_min': col[1][5][0],
+			'ip_length_avg': col[1][6][0],
+			'sum_packets': col[1][7][0],
+			'active_intervals': col[1][8][0]
 		}
 		rec={'_index':'features_index', '_type': 'stats_aggregates', '_source':obj} 
 		l.append(rec)
 	return l
 		
-		
-# def get_data(data):
-	# if not data.isEmpty():
-		# data=data.persist(StorageLevel.MEMORY_AND_DISK)
-		# #data.cache()
-		# filenames=[]
-		# #index_col={}
-		# s = data.toDebugString()# get filenames out of debut strings
-		# for m in re.finditer(rg1,s):
-			# path=s[m.start():m.end()]
-			# path=path[path.find('ACCESS'):]
-			# print path
-			# filenames.append(path) #init structure
-			
-		# if filenames!=[]:
-			# d=[]
-			# c=data.count()
-			# index=data.zipWithIndex()
-			# headers=index.filter(lambda x: x[0]==header or x[1]==c-1).map(lambda x: x[1]).collect() #get headers positions
-			# #print headers
-			# col=zip(headers[0::1],headers[1::1])
-			# for i in range(0,len(col)):
-				# first_line=index.filter(lambda x: x[1]==col[i][0]+1).map(lambda x: x[0]).first()
-				# if i!=len(col)-1:
-					# last_line=index.filter(lambda x: x[1]==col[i][1]-1).map(lambda x: x[0]).first()
-				# else:
-					# last_line=index.filter(lambda x: x[1]==col[i][1]).map(lambda x: x[0]).first()
-				# obj={'File':filenames[i],
-					# 'First':rg2.search(first_line).group(1).encode('utf-8'),
-					# 'Last':rg2.search(last_line).group(1).encode('utf-8')
-				# }
-				# if args.fs=='pyelastic':
-					# #d.append({'_op_type': 'update','_index': 'mdn_afl', '_type': 'logs_files', '_id': 'ctx._id', '_source': { '_script': {'inline': "if ((ctx._source.doc) && (ctx._source.doc.File != doc.File)) { ctx.op='noop' } else { ctx._source.doc=doc }",'params': { 'doc': obj },'_upsert': { 'doc': obj }}}})
-					# d.append({'_index': 'mdn_afl_files', '_type': 'logs_files', '_source': obj})
-				# if 	args.fs=='hadoop':
-					# d.append(obj)
-			# if args.fs=='pyelastic':
-				# helpers.bulk(es,d)
-			# if args.fs=='hadoop':
-				# r=sc.parallelize(d).map(lambda x: ('key',x))
-				# insert_es(r,0)
-				
-		# if args.fs=='pyelastic':
-			# #docs=data.filter(lambda x: x != header).map(lambda x: {'_index': 'mdn_afl_collections', '_type': 'logs_collection', '_source': parse_web_trace(x.strip())})
-			# docs=data.filter(lambda x: x != header).map(lambda x: Try(parse_web_trace,x.strip())).filter(lambda x: x.isSuccess).map(lambda x: x.get())
-			# ips=docs.filter(lambda x: x!=None).map(lambda x: x['IP']).distinct().map(lambda x: {'_index': 'mdn_afl_ips', '_type': 'logs_ips', '_source':Ip2city(x)})
-			# cols=docs.map(lambda x: {'_index': 'mdn_afl_collections', '_type': 'logs_collection', '_source': x})
-			# helpers.bulk(es,ips.collect())
-			# helpers.bulk(es,cols.collect())
-			
-			
-		# if args.fs=='hadoop':
-			# docs=data.filter(lambda x: x != header).map(lambda x: ('key',parse_web_trace(x.strip())))
-			# insert_es(docs,1)
-			# # get dinstinct IP
-			# ips=docs.map(lambda x:x['IP']).distinct().map(lambda x: ('key',Ip2city(x)))
-			# insert_es(ips,2)
-	
-
-	
 
 #Function to parse a line in Web log trace
 def parse_trace(line):
@@ -193,24 +133,15 @@ def main():
 	r1='((?:\\/[\\w\\.\\-]+)+)'	# Unix Path pattern
 	#parser.add_argument('-f','--fs', nargs='?', default ='hadoop', choices=['hadoop', 'pyelastic'], help='Insertion through Hadoop API or ES')
 
-	
 	global rg1
-	#global rg2
-	
-	#global es_write_conf0
-	#global es_write_conf1
-	#global es_write_conf2
 	global header
-	#global reader
 	global sc
-	#global es
 	global args
-	#global geoDBpath
-	#global logger
+
 	rg1 = re.compile(r1,re.IGNORECASE|re.DOTALL)
-	#rg2 = re.compile(r2,re.IGNORECASE|re.DOTALL)
 	args = parser.parse_args()
 	header="src-IP\tanon-dst-IP	src-port\tdst-port\tTTL\tIP-Length\tPackets\tminute"
+	
 	with open(resource(args.conf), 'r') as f:
 		try:
 			cfg=yaml.load(f)
@@ -232,8 +163,6 @@ def main():
 		
 		except yaml.YAMLError as exc:
 			print(exc)
-
-#TCP SYn 6 |..| 0X02
-#per IP: sorted scanned ports (ascending), sum nbr packets, total nbr unique destinations, nbr unique source ports, nbr active intervals, avg IP length,  		
+	
 if __name__=="__main__":
 	main()
