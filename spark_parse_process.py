@@ -14,7 +14,7 @@ import inspect as _inspect
 
 '''Author: Amine Boukhtouta 23-10-2018'''
 '''python spark_parse_process.py -p logs_streaming -c config.yaml -o output''' #Running command
-'''nohup python2.7 spark_parse_process.py -p logs_streaming -c config.yaml -o output''' #Running the script in the background
+'''nohup python2.7 spark_parse_process.py -p logs_streaming -c config.yaml -o output &''' #Running the script in the background
 '''spark-submit --master local[*] --jars jars/elasticsearch-hadoop-5.4.0.jar ./code/spark_parse.py''' #For hadoop: stills bogus
 
 
