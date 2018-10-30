@@ -13,8 +13,9 @@ import inspect as _inspect
 #import logging
 
 '''Author: Amine Boukhtouta 23-10-2018'''
-'''python spark_parse_corsaro.py -p ./logs_streaming -c config.yaml '''
-'''spark-submit --master local[*] --jars jars/elasticsearch-hadoop-5.4.0.jar ./code/spark_parse.py''' # for hadoop, stills bugy
+'''python spark_parse_process.py -p logs_streaming -c config.yaml -o output''' #Running command
+'''nohup python2.7 spark_parse_process.py -p logs_streaming -c config.yaml -o output''' #Running the script in the background
+'''spark-submit --master local[*] --jars jars/elasticsearch-hadoop-5.4.0.jar ./code/spark_parse.py''' #For hadoop: stills bogus
 
 
 #important classes to check mapping function on RDDs
@@ -102,16 +103,16 @@ def convert_json_bulk(col):
 	l=[]
 	for item in col:
 		obj={
-			'ip': col[0],
-			'unique_dst_ips': col[1][0][0],
-			'unique_src_ports': col[1][1][0],
-			'dst_ports': col[1][2][0],
-			'ttl_avg': col[1][3][0],
-			'ttl_max': col[1][4][0],
-			'ttl_min': col[1][5][0],
-			'ip_length_avg': col[1][6][0],
-			'sum_packets': col[1][7][0],
-			'active_intervals': col[1][8][0]
+			'ip': item[0],
+			'unique_dst_ips': item[1][0][0],
+			'unique_src_ports': item[1][1][0],
+			'dst_ports': item[1][2][0],
+			'ttl_avg': item[1][3][0],
+			'ttl_max': item[1][4][0],
+			'ttl_min': item[1][5][0],
+			'ip_length_avg': item[1][6][0],
+			'sum_packets': item[1][7][0],
+			'active_intervals': item[1][8][0]
 		}
 		rec={'_index':'features_index', '_type': 'stats_aggregates', '_source':obj} 
 		l.append(rec)
